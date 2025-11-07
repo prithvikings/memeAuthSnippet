@@ -4,6 +4,7 @@ import { isValidEmail, isValidPassword } from "../validation/isValid.js";
 import jwt from "jsonwebtoken";
 import { ENV } from "../config/env.js";
 import generateToken from "../config/token.js";
+import { redisClient as client } from "../config/redis.js";
 
 export const registerUser = async (req, res) => {
   const { firstname, lastname, username, email, password } = req.body;
@@ -46,12 +47,12 @@ export const registerUser = async (req, res) => {
     const token = generateToken(newUser._id);
 
     // Set cookie
-   res.cookie("token", token, {
-  httpOnly: true,
-  secure: ENV.NODE_ENV === "production" ? true : false, // false for localhost
-  sameSite: ENV.NODE_ENV === "production" ? "none" : "lax", // ✅ allow cross-site cookies
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-});
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: ENV.NODE_ENV === "production" ? true : false, // false for localhost
+      sameSite: ENV.NODE_ENV === "production" ? "none" : "lax", // ✅ allow cross-site cookies
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     // Exclude password before sending response
     const { password: _, ...userData } = newUser.toObject();
@@ -85,14 +86,14 @@ export const loginUser = async (req, res) => {
 
     // Generate token
     const token = generateToken(user._id);
-    
+
     // Set cookie
     res.cookie("token", token, {
-  httpOnly: true,
-  secure: ENV.NODE_ENV === "production" ? true : false, // false for localhost
-  sameSite: ENV.NODE_ENV === "production" ? "none" : "lax", // ✅ allow cross-site cookies
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-});
+      httpOnly: true,
+      secure: ENV.NODE_ENV === "production" ? true : false, // false for localhost
+      sameSite: ENV.NODE_ENV === "production" ? "none" : "lax", // ✅ allow cross-site cookies
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
     const { password: _, ...userData } = user.toObject();
 
     res.status(200).json({
@@ -110,12 +111,20 @@ export const loginUser = async (req, res) => {
 
 export const logoutUser = async (req, res) => {
   try {
+    const { token } = req.cookies;
+    if (token) {
+      const decoded = jwt.verify(token, ENV.JWT_SECRET);
+      const userId = decoded.id;
+      // Store the token in Redis with an expiration time matching the cookie's maxAge
+      await client.setEx(`blacklist_${token}`, 7 * 24 * 60 * 60, "true"); // 7 days in seconds
+    }
+
     // Clear the cookie
     res.clearCookie("token", {
-  httpOnly: true,
-  secure: ENV.NODE_ENV === "production" ? true : false,
-  sameSite: ENV.NODE_ENV === "production" ? "none" : "lax",
-});
+      httpOnly: true,
+      secure: ENV.NODE_ENV === "production" ? true : false,
+      sameSite: ENV.NODE_ENV === "production" ? "none" : "lax",
+    });
 
     res.status(200).json({
       message: "Logout successful",
