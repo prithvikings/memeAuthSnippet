@@ -8,7 +8,7 @@ const userRouter = Router();
 // Example route
 userRouter.post("/register", registerUser);
 userRouter.post("/login", loginUser);
-userRouter.get("/logout",logoutUser);
+userRouter.get("/logout",checkAuth,logoutUser);
 userRouter.get("/profile", checkAuth ,getProfile);
 
 export default userRouter;

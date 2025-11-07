@@ -5,6 +5,7 @@ import { errorHandler } from './middleware/error.middleware.js';
 import userRouter from './routes/user.router.js';
 import cookieParser from 'cookie-parser';
 import { ENV } from './config/env.js';
+import  rateLimiter from "./middleware/rateLimiter.js"
 
 const app = express();
 
@@ -19,7 +20,7 @@ app.use(cors({
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 app.use(cookieParser()); // for parsing cookies
-
+app.use(rateLimiter); // Rate limiting middleware
 
 // Health check route
 app.get('/', (req, res) => {

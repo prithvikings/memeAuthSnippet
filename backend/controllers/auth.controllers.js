@@ -4,7 +4,7 @@ import { isValidEmail, isValidPassword } from "../validation/isValid.js";
 import jwt from "jsonwebtoken";
 import { ENV } from "../config/env.js";
 import generateToken from "../config/token.js";
-import { redisClient as client } from "../config/redis.js";
+import { redisClient } from "../config/redis.js";
 
 export const registerUser = async (req, res) => {
   const { firstname, lastname, username, email, password } = req.body;
@@ -109,27 +109,25 @@ export const loginUser = async (req, res) => {
   }
 };
 
-export const logoutUser = async (req, res) => {
+export const logoutUser =async (req, res) => {
   try {
-    const { token } = req.cookies;
+    const {token} = req.cookies;
+    const payload=jwt.decode(token);
+    const expiry=payload.exp;
     if (token) {
-      const decoded = jwt.verify(token, ENV.JWT_SECRET);
-      const userId = decoded.id;
-      // Store the token in Redis with an expiration time matching the cookie's maxAge
-      await client.setEx(`blacklist_${token}`, 7 * 24 * 60 * 60, "true"); // 7 days in seconds
+      
+      await redisClient.set(`token:${token}`,"Blocked");
+      await redisClient.expireAt(`token:${token}`, expiry);
+
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: ENV.NODE_ENV === "production" ? true : false,
+        sameSite: ENV.NODE_ENV === "production" ? "none" : "lax",
+      });
+
+      
+      res.status(200).json({ message: "Logout successful" });
     }
-
-    // Clear the cookie
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: ENV.NODE_ENV === "production" ? true : false,
-      sameSite: ENV.NODE_ENV === "production" ? "none" : "lax",
-    });
-
-    res.status(200).json({
-      message: "Logout successful",
-      success: true,
-    });
   } catch (error) {
     res.status(500).json({
       message: "Error logging out",

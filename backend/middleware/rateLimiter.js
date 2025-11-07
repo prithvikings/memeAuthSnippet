@@ -1,29 +1,25 @@
-import client from "../config/reddis";
+import { redisClient } from "../config/redis.js";
 
-const RATE_LIMIT_WINDOW = 3600;
-const MAX_REQUESTS = 100;
+const RATE_LIMIT_WINDOW = 60; // in seconds
+const MAX_REQUESTS = 10; 
 
-//fixed window rate limiting implementation
-const rateLimiter = async (req, res, next) => {
-  try {
-    const ip = req.ip;
-    const numberofRequests = await client.incr(ip); //incr method increments the number stored at key by one. If the key does not exist, it is set to 0 before performing the operation.
-
-    if (numberofRequests > MAX_REQUESTS) {
-      return res.status(429).json({ message: "Too Many Requests" });
+const rateLimiter=async(req,res,next)=>{
+  try{
+    const ip=req.ip;
+    const requests=await redisClient.incr(ip);
+    if(requests>MAX_REQUESTS){
+      return res.status(429).json({message:"Too Many Requests"});
     }
 
-    if (numberofRequests === 1) {
-      await client.expire(RATE_LIMIT_WINDOW);
+    if(requests===1){
+      await redisClient.expire(RATE_LIMIT_WINDOW);
     }
-
     next();
-
-  } catch (err) {
+  }catch(err){
     console.error("Rate Limiter Error", err);
     return res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
 // slide window rate limiting implementation
 // const rateLimiter = async (req, res, next) => {
