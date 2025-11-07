@@ -3,6 +3,8 @@ import { redisClient } from "../config/redis.js";
 const RATE_LIMIT_WINDOW = 60; // in seconds
 const MAX_REQUESTS = 10; 
 
+
+// Fixed Window Rate Limiting Implementation
 const rateLimiter=async(req,res,next)=>{
   try{
     const ip=req.ip;
